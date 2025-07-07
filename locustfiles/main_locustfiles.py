@@ -1,0 +1,16 @@
+from locustfiles.bin_family_locust import LoadTestBinFamily
+from locustfiles.bin_locust import LoadTestBin
+from locustfiles.licenseplates_locust import LoadTestLicenseplates
+from locustfiles.location_locust import LoadTestLocation
+from locustfiles.product_locust import LoadTestProduct
+from locustfiles.production_order_locust import LoadTestProductionOrder
+from locustfiles.report_locust import LoadTestReport
+from locustfiles.shopping_list_locust import LoadTestShoppingList
+from locustfiles.stack_locust import LoadTestStack
+from locustfiles.users_locust import LoadTestUsers
+from locustfiles.vendors_locust import LoadTestVendors
+from locustfiles.printer_locust import LoadTestPrinters
+from locustfiles.pick_locust import LoadTestPick
+from locustfiles.pick_lineitem_locust import LoadTestPickLineitem
+from locustfiles.learning_video_map_locust import LoadTestLearning
+
