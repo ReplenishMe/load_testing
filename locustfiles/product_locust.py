@@ -24,21 +24,19 @@ class LoadTestProduct(FastHttpUser):
             "email": os.getenv("email"),
             "password": os.getenv("password")
             }
-
-        try:
-            response = requests.post(
-                url="http://localhost:5000/auth/default/system/login",
-                data=payload,
-                )
-            response.raise_for_status()
-            token = response.json()['data']['access_token']
-        except Exception as e:
-            logger.error(e)
+        response = self.client.post(
+            url="/auth/default/system/login",
+            headers={"Accept-Encoding": "gzip, deflate, br"},
+            data=payload
+            )
+        response.raise_for_status()
+        token = response.json()['data']['access_token']
 
         self.default_headers = {
             "Authorization": f"Bearer {token}",
             "Accept-Encoding": "gzip, deflate, br",
             }
+        self._slug = os.getenv('ORG_SLUG')
    
     @task(1)
     def create_products(self):
@@ -53,56 +51,26 @@ class LoadTestProduct(FastHttpUser):
                     "is_external": True,
                     "active": True
                     }    
-        with self.client.post(
-            url="/api/jared/products",
+        self.client.post(
+            url=f"/api/{self._slug}/products",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info("product created successfully")
-                resp.success()
-            else:
-                logger.error(f"Failed to create product: {resp.status_code}")
-                resp.failure("Failed to create product")
+            json=payload
+        )
     
     @task(1)
     def get_products(self):
-        with self.client.get(
-            url="/api/jared/products",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info('product fetched successfully')
-                resp.success()
-            else:
-                logger.error(f'Failed to fetch product: {resp.status_code}')
-                resp.failure("Failed to fetch product id")    
+        self.client.get(
+            url=f"/api/{self._slug}/products",
+            headers=self.default_headers
+        )
 
     @task(1)
     def get_product_by_id(self):
         product = fetch_one('product')
-        with self.client.get(
-            url=f"/api/jared/products/{product['id']}",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f'''product id {
-                        product['id']
-                        } fetched successfully'''
-                    )
-                resp.success()
-            else:
-                logger.error(f'''Failed to fetch product id {
-                            product['id']
-                            }: {
-                            resp.status_code
-                            }
-                        ''')
-                resp.failure("Failed to fetch product id")            
+        self.client.get(
+            url=f"/api/{self._slug}/products/{product['id']}",
+            headers=self.default_headers
+        )          
   
     @task(1)               
     def update_product_id(self):
@@ -114,128 +82,48 @@ class LoadTestProduct(FastHttpUser):
                    "name": name,
                    "part_number": name,
                 }
-        with self.client.put(
-            url=f"/api/jared/products/{product['id']}",
+        self.client.put(
+            url=f"/api/{self._slug}/products/{product['id']}",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"product {product['id']} updated successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to update product {product['id']}: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to update product by id")
+            json=payload
+        )
     
     # @task(1)
     # def delete_product_id(self):
     #     product = fetch_one_asc('product')
-    #     with self.client.delete(
-    #         url=f"/api/jared/products/{product['id']}",
-    #         headers=self.default_headers,
-    #         catch_response=True
-    #     ) as resp:
-    #         if resp.status_code == 200:
-    #             logger.info(
-    #                 f"product {product['id']} deleted successfully"
-    #                 )
-    #             resp.success()
-    #         else:
-    #             logger.error(
-    #                 f"Failed to delete product {product['id']}: {
-    #                     resp.status_code
-    #                     }"
-    #                 )
-    #             resp.failure("Failed to delete bin by id")
+    #     self.client.delete(
+    #         url=f"/api/{self._slug}/products/{product['id']}",
+    #         headers=self.default_headers
+    #     )
     
     @task(1)
     def get_product_by_partnumber(self):
-        with self.client.get(
-            url="/api/jared/products/partnumbers",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info('product part number lookup fetched successfully')
-                resp.success()
-            else:
-                logger.error(f'''Failed to fetch product part number :{
-                    resp.status_code
-                    }''')
-                resp.failure("Failed to fetch product part number")
+        self.client.get(
+            url=f"/api/{self._slug}/products/partnumbers",
+            headers=self.default_headers
+        )
 
     @task(1)
     def get_product_lookup(self):
         product = fetch_one('product')
-        with self.client.get(
-            url=f"/api/jared/products/lookup/?part_number={
+        self.client.get(
+            url=f"/api/{self._slug}/products/lookup/?part_number={
                                             product['part_number']}",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f'''product part number {
-                        product['part_number']
-                        } lookup fetched successfully'''
-                    )
-                resp.success()
-            else:
-                logger.error(f'''Failed to fetch product part number{
-                            product['part_number']
-                            }  lookup: {
-                            resp.status_code
-                            }
-                        ''')
-                resp.failure("Failed to fetch product part number lookup")
+            headers=self.default_headers
+        )
 
     # @task(1)
     # def get_product_by_name(self):
     #     product = fetch_all('product')
-    #     with self.client.get(
-    #         url=f"/api/jared/products/{product['name']}",
-    #         headers=self.default_headers,
-    #         catch_response=True
-    #     ) as resp:
-    #         if resp.status_code == 200:
-    #             logger.info(
-    #                 f'''product name {
-    #                     product['name']
-    #                     } fetched successfully'''
-    #                 )
-    #             resp.success()
-    #         else:
-    #             logger.error(f'''Failed to fetch product name {
-    #                         product['name']
-    #                         }: {
-    #                         resp.status_code
-    #                         }
-    #                     ''')
-    #             resp.failure("Failed to fetch product name")
+    #     self.client.get(
+    #         url=f"/api/{self._slug}/products/{product['name']}",
+    #         headers=self.default_headers
+    #     )
     
     @task(1)
     def get_products_report(self):
         product = fetch_one('product')
-        with self.client.get(
-            url=f"/api/jared/products/{product['id']}/report",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f'product id {product['id']} report fetched successfully'
-                    )
-                resp.success()
-            else:
-                logger.error(f'''Failed to fetch product id {
-                                                            product['id']
-                                                            } report: {
-                                                            resp.status_code
-                                                            }''')
-                resp.failure("Failed to fetch product id report")
+        self.client.get(
+            url=f"/api/{self._slug}/products/{product['id']}/report",
+            headers=self.default_headers
+        )

@@ -25,21 +25,20 @@ class LoadTestVendors(FastHttpUser):
             "email": os.getenv("email"),
             "password": os.getenv("password")
             }
-        try:
-            response = requests.post(
-                url="http://localhost:5000/auth/default/system/login",
-                data=payload,
-                )
-            response.raise_for_status()
-            token = response.json()['data']['access_token']
-        except Exception as e:
-            logger.error(e)
+        response = self.client.post(
+            url="/auth/default/system/login",
+            headers={"Accept-Encoding": "gzip, deflate, br"},
+            data=payload
+            )
+        response.raise_for_status()
+        token = response.json()['data']['access_token']
 
         self.default_headers = {
             "Authorization": f"Bearer {token}",
             "Accept-Encoding": "gzip, deflate, br",
             }
-         
+        self._slug = os.getenv('ORG_SLUG')
+        
     @task(1)                          
     def create_vendor(self):
         erp = generate_digit(3)
@@ -48,32 +47,18 @@ class LoadTestVendors(FastHttpUser):
                     "name": name,
                     "erp_number": erp
                 }
-        with self.client.post(
-            url="/api/jared/vendors",
+        self.client.post(
+            url=f"/api/{self._slug}/vendors",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info("vendors created successfully")
-                resp.success()
-            else:
-                logger.error(f"Failed to create vendors: {resp.status_code}")
-                resp.failure("Failed to create vendors")
+            json=payload
+        )
     
     @task(1)
     def get_vendor(self):
-        with self.client.get(
-            url="/api/jared/vendors",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info("vendors fetched successfully")
-                resp.success()
-            else:
-                logger.error(f"Failed to fetch vendors: {resp.status_code}")
-                resp.failure("Failed to fetch vendors")
+        self.client.get(
+            url=f"/api/{self._slug}/vendors",
+            headers=self.default_headers
+        )
     
     @task(1)                                      
     def update_vendor_id(self):
@@ -84,66 +69,25 @@ class LoadTestVendors(FastHttpUser):
                 "name": name,
                 "erp_number":  erp,
             }
-        with self.client.put(
-            url=f"/api/jared/vendors/{vendors['id']}",
+        self.client.put(
+            url=f"/api/{self._slug}/vendors/{vendors['id']}",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            
-            if resp.status_code == 200:
-                logger.info(
-                    f"vendor {vendors['id']} updated successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to update vendor {vendors['id']}: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to update vendor by id")
+            json=payload
+        )
 
     @task(1)
     def get_vendor_id(self):
         vendors = fetch_one('vendor')
-        with self.client.get(
-            url=f"/api/jared/vendors/{vendors['id']}",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"vendor id {vendors['id']} fetched successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to fetch vendor id {vendors['id']}: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to fetch vendors by id")
+        self.client.get(
+            url=f"/api/{self._slug}/vendors/{vendors['id']}",
+            headers=self.default_headers
+        )
     
     @task(1)
     def delete_vendor_id(self):
         vendors = fetch_one_asc('vendor')
-        with self.client.delete(
-            url=f"/api/jared/vendors/{vendors['id']}",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"vendors {vendors['id']} deleted successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to delete vendors {vendors['id']}: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to delete vendors by id")
-    
+        self.client.delete(
+            url=f"/api/{self._slug}/vendors/{vendors['id']}",
+            headers=self.default_headers
+        )
     

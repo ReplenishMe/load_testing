@@ -1,6 +1,5 @@
 import os
 import requests
-import time
 import random
 import logging
 from dotenv import load_dotenv
@@ -27,20 +26,19 @@ class LoadTestLicenseplates(FastHttpUser):
             "email": os.getenv("email"),
             "password": os.getenv("password")
             }
-        try:
-            response = requests.post(
-                url="http://localhost:5000/auth/default/system/login",
-                data=payload,
-                )
-            response.raise_for_status()
-            token = response.json()['data']['access_token']
-        except Exception as e:
-            logger.error(e)
+        response = self.client.post(
+            url="/auth/default/system/login",
+            headers={"Accept-Encoding": "gzip, deflate, br"},
+            data=payload
+            )
+        response.raise_for_status()
+        token = response.json()['data']['access_token']
 
         self.default_headers = {
             "Authorization": f"Bearer {token}",
             "Accept-Encoding": "gzip, deflate, br",
             }
+        self._slug = os.getenv('ORG_SLUG')
         
     @task(1)
     def licenseplate_made(self):
@@ -53,24 +51,11 @@ class LoadTestLicenseplates(FastHttpUser):
             "stack_id": stack_id['stack_id'],
             "quantity": 1,
         }
-        with self.client.post(
-            url="/api/jared/license_plates/made",
+        self.client.post(
+            url=f"/api/{self._slug}/license_plates/made",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info("Licenseplate made created successfully")
-                resp.success() 
-            else:
-                logger.error(
-                    f"Failed to create licenseplate made: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure(
-                    "Failed to create licenseplate made"
-                    )
+            json=payload
+        )
   
     @task(1)
     def licenseplate_made_many(self):
@@ -83,22 +68,11 @@ class LoadTestLicenseplates(FastHttpUser):
                     "lp_ids": licenseplate,
                     "quantity": 5
                 }
-        with self.client.post(
-            url="/api/jared/license_plates/made_many",
+        self.client.post(
+            url=f"/api/{self._slug}/license_plates/made_many",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 202:
-                logger.info("Licenseplate made many requested successfully")
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to create licenseplate made many task id: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to create licenseplate made many task id")
+            json=payload
+        )
 
     @task(1)
     def licenseplate_move(self):
@@ -116,26 +90,11 @@ class LoadTestLicenseplates(FastHttpUser):
                 "license_plate_id": licenseplate,
                 "user_id": users
             }
-        with self.client.post(
-            url="/api/jared/license_plates/move",
+        self.client.post(
+            url=f"/api/{self._slug}/license_plates/move",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            time.sleep(5)
-            message_ok = resp.json()['message'] == "license plate move created"
-            if message_ok and resp.status_code == 200:
-                logger.info(
-                    "license plate move transaction created successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to create licenseplate move: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to create licenseplate move task id")
+            json=payload
+        )
 
     @task(1)
     def licenseplate_move_many(self):
@@ -153,24 +112,11 @@ class LoadTestLicenseplates(FastHttpUser):
                 # "user_id": users,
                 "license_plate_ids": licenseplates
             }
-        with self.client.post(
-            url="/api/jared/license_plates/move_many",
+        self.client.post(
+            url=f"/api/{self._slug}/license_plates/move_many",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 202:
-                logger.info(
-                    "license plate move many transaction created successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to create licenseplate move many task id: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to create licenseplate move many task id")
+            json=payload
+        )
 
     # @task(1)
     # def licenseplate_create(self):
@@ -181,24 +127,11 @@ class LoadTestLicenseplates(FastHttpUser):
     #             "product_id": product['id'],
     #             "quantity": 1
     #             }
-    #     with self.client.post(
-    #         url="/api/jared/license_plates",
+    #     self.client.post(
+    #         url=f"/api/{self._slug}/license_plates",
     #         headers=self.default_headers,
-    #         json=payload,
-    #         catch_response=True
-    #     ) as resp:
-    #         if resp.status_code == 200:
-    #             logger.info(
-    #                 "licenseplate task id recieved successfully"
-    #                 )
-    #             resp.success()
-    #         else:
-    #             logger.error(
-    #                 f"Failed to create licenseplate task id: {
-    #                     resp.status_code
-    #                     }"
-    #                 )
-    #             resp.failure("Failed to create licenseplate task id")
+    #         json=payload
+    #     )
 
     @task(1)
     def licenseplate_comment(self):
@@ -207,92 +140,32 @@ class LoadTestLicenseplates(FastHttpUser):
         payload = {
                 "message": message
                 }
-        with self.client.post(
-            url=f"/api/jared/license_plates/{lp['id']}/comment",
+        self.client.post(
+            url=f"/api/{self._slug}/license_plates/{lp['id']}/comment",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"licenseplate {lp['id']} comment updated successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to update comment for licenseplate {lp['id']}: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to update comment")
+            json=payload
+        )
 
     @task(1)
     def get_licenseplate_id(self):
         lp = fetch_one('license_plate')
-        with self.client.get(
-            url=f"/api/jared/license_plates/{lp['id']}",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"licenseplate id {lp['id']} data fetched successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to fetch licenseplate id {lp['id']} data: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure(
-                    f"Failed to fetch licenseplate id {lp['id']} data"
-                    )
+        self.client.get(
+            url=f"/api/{self._slug}/license_plates/{lp['id']}",
+            headers=self.default_headers
+        )
 
     @task(1)
     def get_licenseplate_activities(self):
         lp = fetch_one('license_plate')
-        with self.client.get(
-            url=f"/api/jared/license_plates/{lp['id']}/activities",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f'''licenseplate id {
-                                lp['id']
-                                } activity data fetched successfully'''
-                )
-                resp.success()
-            else:
-                logger.error(
-                    f'''Failed to fetch licenseplate id {
-                                                        lp['id']
-                                                        } activity data: {
-                                                        resp.status_code
-                                                        }'''
-                    )
-                resp.failure("Failed to fetch licenseplate id activity data")
+        self.client.get(
+            url=f"/api/{self._slug}/license_plates/{lp['id']}/activities",
+            headers=self.default_headers
+        )
 
     @task(1)
     def get_licenseplate_lookup(self):
         lp = fetch_one('license_plate')
-        with self.client.get(
-            url=f"/api/jared/license_plates/lookup?lp_id={lp['lp_id']}",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f'''licenseplate id {
-                        lp['id']
-                        } lookup data fetched successfully'''
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to fetch licenseplate id lookup data: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to fetch licenseplate id lookup data")
+        self.client.get(
+            url=f"/api/{self._slug}/license_plates/lookup?lp_id={lp['lp_id']}",
+            headers=self.default_headers
+        )

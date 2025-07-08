@@ -23,20 +23,19 @@ class LoadTestSuperAdmin(FastHttpUser):
             "email": os.getenv("email"),
             "password": os.getenv("password")
             }
-        try:
-            response = requests.post(
-                url="http://localhost:5000/auth/default/system/login",
-                data=payload,
-                )
-            response.raise_for_status()
-            token = response.json()['data']['access_token']
-        except Exception as e:
-            logger.error(e)
+        response = self.client.post(
+            url="/auth/default/system/login",
+            headers={"Accept-Encoding": "gzip, deflate, br"},
+            data=payload
+            )
+        response.raise_for_status()
+        token = response.json()['data']['access_token']
 
         self.default_headers = {
             "Authorization": f"Bearer {token}",
             "Accept-Encoding": "gzip, deflate, br",
             }
+        self._slug = os.getenv('ORG_SLUG')
 
     @task(1)
     def create_super_admin(self):
@@ -51,43 +50,21 @@ class LoadTestSuperAdmin(FastHttpUser):
                 "org_slug": org,
                 "org_address": org
                 }
-        with self.client.post(
-            url="/api/jared/__super_admin__/setup-org",
+        self.client.post(
+            url=f"/api/{self._slug}/__super_admin__/setup-org",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info("super_admin created successfully")
-                resp.success()
-            else:
-                logger.error(f'''Failed to create super_admin: {
-                    resp.text
-                    }''')
-                resp.failure("Failed to create super_admin")
+            json=payload
+        )
 
-    @task(0)
+    @task(1)
     def super_admin_update_json(self):
         org = fetch_one_org('organization')
         payload = {
                 "org_id": org['id'],
                 "template": None
                 }
-        with self.client.post(
-            url="/api/jared/__super_admin__/update-json",
+        self.client.post(
+            url=f"/api/{self._slug}/__super_admin__/update-json",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"super_admin json updated created successfully task id {
-                        resp.json()['data']['task_id']
-                        }"
-                    )
-                resp.success()
-            else:
-                logger.error(f'''Failed to update super_admin json: {
-                    resp.status_code
-                    }''')
-                resp.failure("Failed to update super_admin json")
+            json=payload
+        )

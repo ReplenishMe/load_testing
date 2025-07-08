@@ -1,5 +1,4 @@
 import os
-import requests
 import logging
 from dotenv import load_dotenv
 from locust import task, between
@@ -20,22 +19,21 @@ class LoadTestBinFamily(FastHttpUser):
             "email": os.getenv("email"),
             "password": os.getenv("password")
             }
-        try:
-            response = requests.post(
-                url="http://localhost:5000/auth/default/system/login",
-                data=payload,
-                )
-            response.raise_for_status()
-            token = response.json()['data']['access_token']
-        except Exception as e:
-            logger.error(e)
+        response = self.client.post(
+            url="/auth/default/system/login",
+            headers={"Accept-Encoding": "gzip, deflate, br"},
+            data=payload
+            )
+        response.raise_for_status()
+        token = response.json()['data']['access_token']
 
         self.default_headers = {
             "Authorization": f"Bearer {token}",
             "Accept-Encoding": "gzip, deflate, br",
             }
+        self._slug = os.getenv('ORG_SLUG')
     
-    @task(1)                                   
+    @task(1)                           
     def create_bin_family(self):
         product = fetch_one('product')
         location = fetch_one('location')
@@ -45,101 +43,48 @@ class LoadTestBinFamily(FastHttpUser):
                 "preferred_vendor_id": product['preferred_vendor_id'],
                 "product_id": product['id']
                 }
-        with self.client.post(
-            url="/api/jared/bin_families",
+        self.client.post(
+            url=f"/api/{self._slug}/bin_families",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info("bin_family created successfully")
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to create bin_family: {resp.status_code}"
-                    )
-                resp.failure("Failed to create bin_family")
-  
+            json=payload
+        )
+
     @task(1)
     def get_bin_family(self):
-        with self.client.get(
-            url="api/jared/bin_families",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info("bin_family fetched successfully")
-                resp.success()
-            else:
-                logger.error(f"Failed to fetch bin_family: {resp.status_code}")
-                resp.failure("Failed to fetch bin_family")
+        self.client.get(
+            url=f"/api/{self._slug}/bin_families",
+            headers=self.default_headers
+        )
     
     @task(1)                                      
     def update_bin_family_id(self):
         bin_family = fetch_one('bin_family')
+        product = fetch_one('product')
+        location = fetch_one('location')
         payload = {
                 "default_quantity": 123,
-                "location_id": bin_family['id'],
+                "location_id": location['id'],
                 "preferred_vendor_id": bin_family['preferred_vendor_id'],
-                "product_id": bin_family['id']
+                "product_id": product['id']
                 }
-        with self.client.put(
-            url=f"/api/jared/bin_families/{bin_family['id']}",
+        self.client.put(
+            url=f"/api/{self._slug}/bin_families/{bin_family['id']}",
             headers=self.default_headers,
-            json=payload,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"bin_family [{bin_family['id']}] updated successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to update bin_family [{bin_family['id']}]: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to update bin_family by ID")
+            json=payload
+        )
     
     @task(1)
     def get_bin_family_id(self):
         bin_family = fetch_one('bin_family')
-        with self.client.get(
-            url=f"/api/jared/bin_families/{bin_family['id']}",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"bin_family [{bin_family['id']}] fetched successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to fetch bin_family [{bin_family['id']}]: {
-                        resp.status_code
-                        }"
-                )
-                resp.failure("Failed to fetch bin_family by ID")
+        self.client.get(
+            url=f"/api/{self._slug}/bin_families/{bin_family['id']}",
+            headers=self.default_headers
+        )
     
     @task(1)
     def delete_bin_family_id(self):
         bin_family = fetch_one('bin_family')
-        with self.client.delete(
-            url=f"/api/jared/bin_families/{bin_family['id']}",
-            headers=self.default_headers,
-            catch_response=True
-        ) as resp:
-            if resp.status_code == 200:
-                logger.info(
-                    f"bin_family [{bin_family['id']}] deleted successfully"
-                    )
-                resp.success()
-            else:
-                logger.error(
-                    f"Failed to delete bin_family [{bin_family['id']}]: {
-                        resp.status_code
-                        }"
-                    )
-                resp.failure("Failed to delete bin_family by ID")
+        self.client.delete(
+            url=f"/api/{self._slug}/bin_families/{bin_family['id']}",
+            headers=self.default_headers
+        )
